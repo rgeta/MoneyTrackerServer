@@ -22,9 +22,6 @@ public class MoneyTrackerServer extends Application {
 	// Основное окно
 	public Stage primaryStage;
 
-	// База данных
-	// public DB db;
-
 	// Флаг для отслеживания завершения сервера
 	public boolean mServerWorking;
 
@@ -156,13 +153,11 @@ public class MoneyTrackerServer extends Application {
 
 		// Текстовая область
 		textArea = new TextArea();
-		// textArea.setMaxHeight(Double.MAX_VALUE);
 		textArea.setEditable(false);
 		textArea.setFocusTraversable(false);
 
 		root.getChildren().add(menuBar);
 		VBox vBoxForText = new VBox();
-		// vBoxForText.getChildren().add(new Button("Test"));
 
 		Label label = new Label("Server log area:");
 		label.setPadding(new Insets(0, 0, 8, 0));
@@ -189,14 +184,6 @@ public class MoneyTrackerServer extends Application {
 
 		// Отображаем окно
 		primaryStage.show();
-
-		// Подключаемся к базе данных
-		// this.db = new DB();
-		// db.Connect();
-		// db.Query("PRAGMA ENCODING = \"UTF-8\"");
-		// ResultSet resultset = db.executeQuery("SELECT * FROM TCheckList");
-		// System.out.println(resultset.getString("CheckListName"));
-		// System.out.println("Тест");
 	}
 
 	@Override
