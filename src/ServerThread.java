@@ -16,6 +16,12 @@ import javafx.scene.control.TextArea;
 
 public class ServerThread extends Thread {
 
+	// Системный разделитель
+	private static final String separator = File.separator;
+
+	// Папка, в которую будем делать резервные копии
+	private static final String directory = System.getProperty("user.dir") + separator + "data";
+	
 	// Сам сокет
 	private ServerSocket serverSocket;
 
@@ -50,7 +56,8 @@ public class ServerThread extends Thread {
 			if (!textArea.getText().isEmpty()) {
 				textArea.appendText("\n--------------------\n");
 			}
-			textArea.appendText("Server started\nIP - " + address + "\nPort - " + serverSocket.getLocalPort());
+			textArea.appendText("Server started\nIP-address: " + address + "\nPort: " + serverSocket.getLocalPort()
+					+ "\nDirectory: " + directory);
 			
 			// Потоки для записи и чтения файла с данными
 			FileOutputStream foutput = null;
@@ -110,11 +117,15 @@ public class ServerThread extends Thread {
 							// Загрузка файла на устройство
 							// Сначала проверим полноту данных
 							if ((id.isEmpty()) || (fileName.isEmpty())) {
-								textArea.appendText("\n-ERR Could't start loading");
-								output.writeUTF("-ERR Could't start loading\r");
+								textArea.appendText("\n-ERR Couldn't start loading");
+								output.writeUTF("-ERR Couldn't start loading\r");
 							} else {
+								
 								// Пытаемся открыть файл на чтение
-								File file = new File("c://data//" + id + "//" + fileName);
+								File file = new File(directory + separator + id, fileName);
+								
+								// Пишем в лог полный путь к файлу
+								textArea.appendText("\nFile: " + file.getAbsolutePath());
 
 								// Создаем поток для этого файла
 								finput = new FileInputStream(file);
@@ -127,13 +138,16 @@ public class ServerThread extends Thread {
 							// Сохранение файла на сервер
 							// Сначала проверим полноту данных
 							if ((id.isEmpty()) || (fileName.isEmpty())) {
-								textArea.appendText("\n-ERR Could't start saving");
-								output.writeUTF("-ERR Could't start saving\r");
+								textArea.appendText("\n-ERR Couldn't start saving");
+								output.writeUTF("-ERR Couldn't start saving\r");
 							} else {
 								stage = Stage.AWAITING_DATA;
 
 								// Создаем файл для последующей потоковой записи
-								File file = new File("c://data//" + id + "//" + fileName);
+								File file = new File(directory + separator + id, fileName);
+
+								// Пишем в лог полный путь к файлу
+								textArea.appendText("\nFile: " + file.getAbsolutePath());
 
 								// Создаем поток для этого файла
 								foutput = new FileOutputStream(file);
@@ -156,8 +170,16 @@ public class ServerThread extends Thread {
 							// Выделяем переданный клиентом ID
 							id = command.substring(7).trim();
 
+							// Проверяем существование папки для данных
+							File dataFolder = new File(directory);
+							if (!dataFolder.exists()) {
+
+								// Создаем папку
+								dataFolder.mkdir();
+							}
+							
 							// Проверяем существование папки с заданным ID
-							File dataFolder = new File("c://data//" + id);
+							dataFolder = new File(directory + separator + id);
 							if (!dataFolder.exists()) {
 
 								// Создаем папку

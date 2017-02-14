@@ -27,7 +27,7 @@ public class StageAbout extends Stage {
 		grid.setVgap(10);
 		grid.setPadding(new Insets(16, 16, 16, 16));
 		 
-		Scene scene = new Scene(grid, 300, 180);
+		Scene scene = new Scene(grid, 320, 200);
 		setScene(scene);
 		
 		Label lblAbout = new Label("Use MoneyTrackerServer if you want to backup or restore Android MoneyTracker data. "
