@@ -7,21 +7,13 @@ import java.awt.event.*;
 public class MoneyTrackerServer extends JFrame {
 
     private JTextArea textArea = new JTextArea();
+
     // Серверная "нить"
     private ServerThread serverThread;
 
     private MoneyTrackerServer() {
         setTitle("MoneyTrackerServer 2.1 (Swing version)");
         setIconImage(Toolkit.getDefaultToolkit().getImage(this.getClass().getClassLoader().getResource("images/icon16x16.png")));
-
-        /*try {
-            Image icon = ImageIO.read(this.getClass().getResourceAsStream("/images/icon16x16.png"));
-            setIconImage(icon);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }*/
-
-
         setSize(800, 600);
         setLocationRelativeTo(null);
 
@@ -34,6 +26,7 @@ public class MoneyTrackerServer extends JFrame {
 
         // Пункт меню подключения
         final JMenuItem miStart = new JMenuItem("Start server");
+
         // Пункт меню отключения
         final JMenuItem miStop = new JMenuItem("Stop server");
         miStop.setEnabled(false);
@@ -41,15 +34,18 @@ public class MoneyTrackerServer extends JFrame {
         miStart.addActionListener(new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
+
                 // Запрещаем кнопку запуска сервера
                 miStart.setEnabled(false);
                 try {
+
                     // Запускаем сервер
                     serverThread = new ServerThread(textArea);
                     serverThread.start();
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
+
                     // Разрешаем кнопку остановки сервера
                     miStop.setEnabled(true);
                 }
@@ -59,17 +55,21 @@ public class MoneyTrackerServer extends JFrame {
         miStop.addActionListener(new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
+
                 // Запрещаем кнопку остановки сервера
                 miStop.setEnabled(false);
                 try {
+
                     // Отдаем команду закрытия сокета
                     serverThread.closeSocket();
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
+
                     // Разрешаем кнопку запуска сервера
                     miStart.setEnabled(true);
                 }
+
                 // Ставим флаг завершения сервера
                 serverThread.interrupt();
                 try {
@@ -82,6 +82,7 @@ public class MoneyTrackerServer extends JFrame {
 
         fileMenu.add(miStart);
         fileMenu.add(miStop);
+
         // Разделитель
         fileMenu.addSeparator();
 
@@ -115,7 +116,6 @@ public class MoneyTrackerServer extends JFrame {
         });
         helpMenu.add(miAbout);
         setJMenuBar(menuBar);
-
 
         JPanel padder = new JPanel();
         padder.setLayout(new BoxLayout(padder, BoxLayout.Y_AXIS));
@@ -152,8 +152,10 @@ public class MoneyTrackerServer extends JFrame {
     private void stopAndExit() {
         if (serverThread != null && serverThread.isAlive()) {
             try {
+
                 // Отдаем команду закрытия сокета
                 serverThread.closeSocket();
+
                 // Ставим флаг завершения сервера
                 serverThread.interrupt();
             } catch (Exception e) {
