@@ -1,203 +1,171 @@
-import javafx.application.Application;
-import javafx.beans.property.ReadOnlyDoubleProperty;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TextArea;
-import javafx.scene.image.Image;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.text.DefaultCaret;
+import java.awt.*;
+import java.awt.event.*;
 
-public class MoneyTrackerServer extends Application {
+public class MoneyTrackerServer extends JFrame {
 
-	// Основное окно
-	public Stage primaryStage;
+    private JTextArea textArea = new JTextArea();
+    // Серверная "нить"
+    private ServerThread serverThread;
 
-	// Флаг для отслеживания завершения сервера
-	public boolean mServerWorking;
+    private MoneyTrackerServer() {
+        setTitle("MoneyTrackerServer 2.1 (Swing version)");
+        setIconImage(Toolkit.getDefaultToolkit().getImage(this.getClass().getClassLoader().getResource("images/icon16x16.png")));
 
-	// Область ведения лога
-	public TextArea textArea;
+        /*try {
+            Image icon = ImageIO.read(this.getClass().getResourceAsStream("/images/icon16x16.png"));
+            setIconImage(icon);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }*/
 
-	// Идентификаторы пунктов меню
-	public static final String ID_START = "ID_START";
-	public static final String ID_STOP = "ID_STOP";
-	public static final String ID_EXIT = "ID_EXIT";
 
-	// Серверная "нить"
-	ServerThread serverThread;
+        setSize(800, 600);
+        setLocationRelativeTo(null);
 
-	public static void main(String[] args) {
-		Application.launch(args);
-	}
+        // Верхнее меню
+        final JMenuBar menuBar = new JMenuBar();
+        final JMenu fileMenu = new JMenu("File");
+        final JMenu helpMenu = new JMenu("Help");
+        menuBar.add(fileMenu);
+        menuBar.add(helpMenu);
 
-	private MenuBar buildMenuBarWithMenus(
-			final ReadOnlyDoubleProperty menuWidthProperty) {
-		final MenuBar menuBar = new MenuBar();
+        // Пункт меню подключения
+        final JMenuItem miStart = new JMenuItem("Start server");
+        // Пункт меню отключения
+        final JMenuItem miStop = new JMenuItem("Stop server");
+        miStop.setEnabled(false);
 
-		// Prepare left-most 'File' drop-down menu
-		final Menu fileMenu = new Menu("File");
+        miStart.addActionListener(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                // Запрещаем кнопку запуска сервера
+                miStart.setEnabled(false);
+                try {
+                    // Запускаем сервер
+                    serverThread = new ServerThread(textArea);
+                    serverThread.start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    // Разрешаем кнопку остановки сервера
+                    miStop.setEnabled(true);
+                }
+            }
+        });
 
-		// Пункт меню подключения
-		final MenuItem miStart = new MenuItem("Start server");
-		miStart.setId(MoneyTrackerServer.ID_START);
-		fileMenu.getItems().add(miStart);
+        miStop.addActionListener(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                // Запрещаем кнопку остановки сервера
+                miStop.setEnabled(false);
+                try {
+                    // Отдаем команду закрытия сокета
+                    serverThread.closeSocket();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    // Разрешаем кнопку запуска сервера
+                    miStart.setEnabled(true);
+                }
+                // Ставим флаг завершения сервера
+                serverThread.interrupt();
+                try {
+                    serverThread.finish();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
 
-		// Пункт меню отключения
-		final MenuItem miStop = new MenuItem("Stop server");
-		miStop.setId(MoneyTrackerServer.ID_STOP);
-		miStop.setDisable(true);
-		fileMenu.getItems().add(miStop);
+        fileMenu.add(miStart);
+        fileMenu.add(miStop);
+        // Разделитель
+        fileMenu.addSeparator();
 
-		// Разделитель
-		fileMenu.getItems().add(new SeparatorMenuItem());
+        // Пункт меню отключения
+        final JMenuItem miExit = new JMenuItem("Exit");
+        miExit.setMnemonic(KeyEvent.VK_X);
+        miExit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, InputEvent.CTRL_DOWN_MASK));
 
-		// Пункт меню отключения
-		final MenuItem miExit = new MenuItem("Exit");
-		miExit.setId(MoneyTrackerServer.ID_EXIT);
-		miExit.setAccelerator(new KeyCodeCombination(KeyCode.X,
-				KeyCombination.CONTROL_DOWN));
-		fileMenu.getItems().add(miExit);
+        miExit.addActionListener(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                stopAndExit();
+            }
+        });
+        fileMenu.add(miExit);
 
-		// Добавляем обработчик событий для меню
-		fileMenu.setOnAction(new EventHandler<ActionEvent>() {
+        final JMenuItem miServerManual = new JMenuItem("Server manual");
+        helpMenu.add(miServerManual);
+        helpMenu.addSeparator();
 
-			@Override
-			public void handle(ActionEvent e) {
-				String itemId = ((MenuItem) e.getTarget()).getId();
-				if (itemId.equals(ID_START)) {
+        final JMenuItem miAbout = new JMenuItem("About");
+        miAbout.setMnemonic(KeyEvent.VK_A);
+        miAbout.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, InputEvent.CTRL_DOWN_MASK));
 
-					// Запрещаем кнопку запуска сервера
-					miStart.setDisable(true);
-					try {
+        miAbout.addActionListener(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                AboutDialog dialog = new AboutDialog(MoneyTrackerServer.this);
+                dialog.setVisible(true);
+            }
+        });
+        helpMenu.add(miAbout);
+        setJMenuBar(menuBar);
 
-						// Запускаем сервер
-						serverThread = new ServerThread(textArea);
-						serverThread.start();
-					} catch (Exception e1) {
-						e1.printStackTrace();
-					} finally {
 
-						// Разрешаем кнопку остановки сервера
-						miStop.setDisable(false);
-					}
-				} else if (itemId.equals(ID_STOP)) {
+        JPanel padder = new JPanel();
+        padder.setLayout(new BoxLayout(padder, BoxLayout.Y_AXIS));
+        padder.setBorder(new EmptyBorder(8, 8, 8, 8));
+        add(padder);
+        final JLabel label = new JLabel("Server log area:");
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+        padder.add(label);
 
-					// Запрещаем кнопку остановки сервера
-					miStop.setDisable(true);
-					try {
+        // В эту текстовую область будем выводить текстовые сообщения сервера
+        textArea.setEditable(false);
+        textArea.setAutoscrolls(true);
 
-						// Отдаем команду закрытия сокета
-						serverThread.closeSocket();
-					} catch (Exception e1) {
-						e1.printStackTrace();
-					} finally {
+        // Чтобы текст автоматически прокручивался по мере добавления
+        DefaultCaret caret = (DefaultCaret) textArea.getCaret();
+        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
-						// Разрешаем кнопку запуска сервера
-						miStart.setDisable(false);
-					}
+        // Добавляем полосу прокрутки
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+        padder.add(scrollPane);
 
-					// Ставим флаг завершения сервера
-					serverThread.interrupt();
-				} else if (itemId.equals(ID_EXIT)) {
-					stop();
-				}
-			}
+        // Обработчик закрытия окна
+        addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                stopAndExit();
+            }
+        });
 
-		});
+        // Ограничение на минимальный размер
+        setMinimumSize(new Dimension(400, 300));
+    }
 
-		// Добавляем подменю
-		menuBar.getMenus().add(fileMenu);
+    private void stopAndExit() {
+        if (serverThread != null && serverThread.isAlive()) {
+            try {
+                // Отдаем команду закрытия сокета
+                serverThread.closeSocket();
+                // Ставим флаг завершения сервера
+                serverThread.interrupt();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        System.exit(0);
+    }
 
-		// Prepare 'Help' drop-down menu
-		final Menu helpMenu = new Menu("Help");
-
-		final MenuItem onlineManualMenuItem = new MenuItem("Server manual");
-		helpMenu.getItems().add(onlineManualMenuItem);
-		helpMenu.getItems().add(new SeparatorMenuItem());
-
-		final MenuItem aboutMenuItem = new MenuItem("About");
-		aboutMenuItem.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent e) {
-				StageAbout stageAbout = new StageAbout(primaryStage);
-				stageAbout.show();
-			}
-		});
-		aboutMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.A,
-				KeyCombination.CONTROL_DOWN));
-		helpMenu.getItems().add(aboutMenuItem);
-		menuBar.getMenus().add(helpMenu);
-
-		// bind width of menu bar to width of associated stage
-		menuBar.prefWidthProperty().bind(menuWidthProperty);
-
-		return menuBar;
-	}
-
-	@Override
-	public void start(Stage primaryStage) throws Exception {
-		final MenuBar menuBar = buildMenuBarWithMenus(primaryStage
-				.widthProperty());
-
-		VBox root = new VBox();
-
-		// Текстовая область
-		textArea = new TextArea();
-		textArea.setEditable(false);
-		textArea.setFocusTraversable(false);
-
-		root.getChildren().add(menuBar);
-		VBox vBoxForText = new VBox();
-
-		Label label = new Label("Server log area:");
-		label.setPadding(new Insets(0, 0, 8, 0));
-		vBoxForText.getChildren().add(label);
-		vBoxForText.setPadding(new Insets(8, 8, 8, 8));
-		vBoxForText.getChildren().add(textArea);
-		root.getChildren().add(vBoxForText);
-
-		Scene scene = new Scene(root, 800, 600);
-
-		// Привязка размеров области к размерам окна
-		textArea.prefHeightProperty().bind(scene.heightProperty());
-		textArea.prefWidthProperty().bind(scene.widthProperty());
-
-		primaryStage.setTitle("MoneyTrackerServer 2.0");
-		primaryStage.setScene(scene);
-		primaryStage.setMinHeight(300);
-		primaryStage.setMinWidth(400);
-		this.primaryStage = primaryStage;
-
-		primaryStage.getIcons().add(
-				new Image(MoneyTrackerServer.class
-						.getResourceAsStream("/images/icon16x16.png")));
-
-		// Отображаем окно
-		primaryStage.show();
-	}
-
-	@Override
-	public void stop() {
-		try {
-
-			// Отдаем команду закрытия сокета
-			serverThread.closeSocket();
-			
-			// Ставим флаг завершения сервера
-			serverThread.interrupt();
-		} catch (Exception e1) {
-		} finally {
-			primaryStage.close();
-		}
-	}
+    public static void main(String[] args) {
+        MoneyTrackerServer mts = new MoneyTrackerServer();
+        mts.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        mts.setVisible(true);
+    }
 }
